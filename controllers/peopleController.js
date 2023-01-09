@@ -76,3 +76,70 @@ exports.deletePersonByID = async (req,res) => {
         res.status(400).json({ success: false, message: err.message });
     }
 }
+
+// for showing the authentication functionalities
+
+exports.loginPerson = async (req, res, next) => {
+
+    try{
+        const { email, password } = req.body;
+
+        // checking if user has given password and email both
+        if (!email || !password) {
+            res.status(400).json({ success: false, message: 'please Enter email or password' });
+            return;
+        }
+        const person = await Person.findOne({ email }).select("+password");
+
+        if (!person) {
+            res.status(400).json({ success: false, message: "Invalid email or password" });
+            return;
+        }
+
+        const isPasswordMatched = await person.comparePassword(password);
+
+        if (!isPasswordMatched) {
+            res.status(400).json({ success: false, message: "Invalid email or password" });
+            return;
+        }
+
+
+        const token = person.getJWTToken();
+
+        // option for cookie
+        console.log(process.env.COOKIE_EXPIRE)
+        const options = {
+            expires: new Date(
+                Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 1000
+            ),
+            httpOnly: true
+        }
+
+        res.status(200).cookie('token', token, options).json({
+            success: true,
+            message: "logged in successfully",
+        });
+    }catch(err){
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+
+exports.logout = async (req, res, next) => {
+    try{
+        res.cookie("token", null, {
+            expires: new Date(Date.now()),
+            httpOnly: true
+        })
+        res.status(200).json({
+            success: true,
+            message: "Logged Out"
+        })
+    }catch(err){
+        res.status(err.statusCode || 400).json({success: false,message: err.message});
+    }
+   
+};
+
+
+
